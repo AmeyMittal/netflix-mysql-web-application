@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix - Watch TV Programmes Online, Watch Films Online</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://assets.nflxext.com/ffe/siteui/vlv3/dace47b4-a5cb-4368-80fe-c26f3e77d540/f5b52435-458f-498f-9d1d-ccd4f1af9913/US-en-20231023-popsignuptwoweeks-perspective_alpha_website_large.jpg');
+            background-size: cover;
+            background-position: center;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+        .btn-netflix {
+            background-color: #e50914;
+            color: white;
+        }
+        .btn-netflix:hover {
+            background-color: #c10912;
+        }
+        /* Glassmorphism for login box */
+        .login-box {
+            background-color: rgba(0, 0, 0, 0.75);
+        }
+    </style>
+</head>
+<body class="bg-black text-white h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="flex justify-between items-center px-10 py-6 z-10">
+        <h1 class="text-red-600 text-5xl font-bold uppercase tracking-tighter">NEWS</h1>
+        <!-- Sign In Button (Hidden if already on sign in modal mostly) -->
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex-grow flex items-center justify-center z-10">
+        <div class="login-box p-16 rounded-md w-full max-w-md">
+            <h2 class="text-3xl font-bold mb-8">Sign In</h2>
+            <form id="loginForm" class="space-y-6">
+                <!-- Error Message Container -->
+                <div id="errorMessage" class="hidden bg-orange-500 text-white text-sm p-3 rounded"></div>
+
+                <div class="relative">
+                    <input type="email" id="email" required
+                        class="block w-full rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 focus:bg-gray-600 focus:outline-none placeholder-gray-400 peer"
+                        placeholder="Emall or phone number">
+                </div>
+                
+                <div class="relative">
+                    <input type="password" id="password" required
+                        class="block w-full rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 focus:bg-gray-600 focus:outline-none placeholder-gray-400"
+                        placeholder="Password">
+                </div>
+
+                <button type="submit" 
+                    class="btn-netflix w-full h-12 rounded font-bold text-lg mt-8 transition duration-200">
+                    Sign In
+                </button>
+
+                <div class="flex justify-between text-gray-400 text-sm">
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" checked class="rounded bg-gray-600 border-none focus:ring-0">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="#" class="hover:underline">Need help?</a>
+                </div>
+            </form>
+
+            <div class="mt-16">
+                <p class="text-gray-500 text-base">New to Netflix? <a href="#" class="text-white hover:underline font-medium">Sign up now.</a></p>
+                <div class="mt-4 text-xs text-gray-500">
+                    This page is a course project and is NOT protected by Google reCAPTCHA.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logic -->
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+
+            // Reset Error
+            errorDiv.classList.add('hidden');
+            errorDiv.innerText = '';
+
+            try {
+                const response = await fetch('http://localhost:3000/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Login Success
+                    // Store user info in LocalStorage
+                    localStorage.setItem('user', JSON.stringify(data.user));
+
+                    // Redirect based on Role
+                    if (data.user.role === 'ADMIN' || data.user.role === 'EMPLOYEE') {
+                        window.location.href = '/admin.html';
+                    } else {
+                        window.location.href = '/dashboard.html';
+                    }
+                } else {
+                    // Login Failed
+                    errorDiv.innerText = data.error || 'Login failed. Please try again.';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('Network Error:', err);
+                errorDiv.innerText = 'Network error. Is the server running?';
+                errorDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

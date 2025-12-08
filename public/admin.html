@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix Admin - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-black border-r border-gray-800 flex flex-col">
+        <div class="p-6">
+            <h1 class="text-red-600 text-3xl font-bold uppercase">NEWS Admin</h1>
+        </div>
+        <nav class="flex-grow px-4 space-y-2">
+            <a href="admin.html" class="block py-3 px-4 rounded bg-gray-800 text-white font-bold">
+                📊 Dashboard
+            </a>
+            <a href="manage_content.html"
+                class="block py-3 px-4 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition">
+                🎬 Web Series & Episodes
+            </a>
+            <a href="manage_contracts.html"
+                class="block py-3 px-4 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition">
+                📜 Contracts & Producers
+            </a>
+            <a href="dashboard.html"
+                class="block py-3 px-4 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition mt-8 border-t border-gray-800">
+                📺 Viewer View
+            </a>
+        </nav>
+        <div class="p-4 border-t border-gray-800">
+            <button id="logoutBtn" class="w-full text-left py-2 px-4 hover:text-red-500 text-sm">Sign Out</button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-10 overflow-auto">
+        <header class="flex justify-between items-center mb-10">
+            <h2 class="text-3xl font-bold">Analytics Overview</h2>
+            <div class="flex items-center space-x-4">
+                <span id="userEmail" class="text-gray-400">admin@netflix.com</span>
+                <div class="w-10 h-10 rounded bg-red-600 flex items-center justify-center font-bold">A</div>
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <!-- Chart 1: Top Series -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h3 class="text-xl font-bold mb-4 text-gray-300">🔥 Top 5 Most Watched Series</h3>
+                <canvas id="topSeriesChart"></canvas>
+            </div>
+
+            <!-- Chart 2: Genre Distribution -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <h3 class="text-xl font-bold mb-4 text-gray-300">🎭 Content by Genre</h3>
+                <canvas id="genreChart"></canvas>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // 1. Auth Check
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role === 'VIEWER') {
+            window.location.href = 'index.html';
+        }
+        document.getElementById('userEmail').innerText = user.email;
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        });
+
+        // 2. Fetch Data & Render Charts
+        async function loadCharts() {
+            try {
+                // Fetch Top Series
+                const res1 = await fetch('/api/analytics/top-series');
+                const topSeriesData = await res1.json();
+
+                // Fetch Genres
+                const res2 = await fetch('/api/analytics/genre-distribution');
+                const genreData = await res2.json();
+
+                // Render Bar Chart
+                new Chart(document.getElementById('topSeriesChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: topSeriesData.map(d => d.series_name),
+                        datasets: [{
+                            label: 'Total Views',
+                            data: topSeriesData.map(d => d.total_views),
+                            backgroundColor: '#e50914',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } }, // Hide legend for single dataset
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: '#374151' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+
+                // Render Doughnut Chart
+                new Chart(document.getElementById('genreChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: genreData.map(d => d.genre_name),
+                        datasets: [{
+                            data: genreData.map(d => d.series_count),
+                            backgroundColor: [
+                                '#F87171', '#FBBF24', '#34D399', '#60A5FA', '#818CF8', '#A78BFA', '#F472B6'
+                            ],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'right', labels: { color: '#9CA3AF' } }
+                        }
+                    }
+                });
+
+            } catch (err) {
+                console.error("Error loading charts:", err);
+            }
+        }
+
+        loadCharts();
+    </script>
+</body>
+
+</html>

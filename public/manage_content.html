@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix Admin - Manage Content</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-black border-r border-gray-800 flex flex-col flex-shrink-0">
+        <div class="p-6">
+            <h1 class="text-red-600 text-3xl font-bold uppercase">NEWS Admin</h1>
+        </div>
+        <nav class="flex-grow px-4 space-y-2">
+            <a href="admin.html"
+                class="block py-3 px-4 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition">
+                📊 Dashboard
+            </a>
+            <a href="manage_content.html" class="block py-3 px-4 rounded bg-gray-800 text-white font-bold transition">
+                🎬 Web Series & Episodes
+            </a>
+            <a href="manage_contracts.html"
+                class="block py-3 px-4 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition">
+                📜 Contracts & Producers
+            </a>
+            <a href="dashboard.html"
+                class="block py-3 px-4 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition mt-8 border-t border-gray-800">
+                📺 Viewer View
+            </a>
+        </nav>
+        <div class="p-4 border-t border-gray-800">
+            <button id="logoutBtn" class="w-full text-left py-2 px-4 hover:text-red-500 text-sm">Sign Out</button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-10 overflow-auto flex space-x-8">
+
+        <!-- Left Column: Web Series List -->
+        <div class="w-1/2 bg-gray-800 rounded-lg p-6 shadow-lg flex flex-col">
+            <header class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Web Series</h2>
+                <!-- Simple Add Form Toggle (In real app, use a Modal) -->
+                <button onclick="document.getElementById('addSeriesForm').classList.toggle('hidden')"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-bold">
+                    + New Series
+                </button>
+            </header>
+
+            <!-- Add Series Form (Hidden by default) -->
+            <div id="addSeriesForm" class="hidden mb-6 bg-gray-700 p-4 rounded">
+                <form id="seriesForm" class="space-y-3">
+                    <input type="text" id="seriesName" placeholder="Series Name" required
+                        class="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white">
+                    <div class="flex space-x-2">
+                        <input type="number" id="prodHouseId" placeholder="Prod House ID" required
+                            class="w-1/2 p-2 rounded bg-gray-600 border border-gray-500 text-white">
+                        <input type="number" id="langId" placeholder="Lang ID" required
+                            class="w-1/2 p-2 rounded bg-gray-600 border border-gray-500 text-white">
+                    </div>
+                    <input type="date" id="releaseDate" required
+                        class="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 py-2 rounded font-bold">Save
+                        Series</button>
+                </form>
+            </div>
+
+            <!-- Series Table -->
+            <div class="overflow-y-auto flex-grow">
+                <table class="w-full text-left text-gray-400">
+                    <thead class="text-gray-200 border-b border-gray-700 bg-gray-900">
+                        <tr>
+                            <th class="p-3">ID</th>
+                            <th class="p-3">Title</th>
+                            <th class="p-3">Prod House</th>
+                            <th class="p-3">Language</th>
+                            <th class="p-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="seriesTableBody" class="divide-y divide-gray-700">
+                        <!-- Rows injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Right Column: Episodes for Selected Series -->
+        <div class="w-1/2 bg-gray-800 rounded-lg p-6 shadow-lg flex flex-col">
+            <header class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Episodes</h2>
+                <span id="selectedSeriesTitle" class="text-gray-400 text-sm italic">Select a series to view
+                    episodes</span>
+            </header>
+
+            <!-- Add Episode Form -->
+            <div id="addEpisodeFormPanel" class="hidden mb-6 bg-gray-700 p-4 rounded">
+                <h3 class="text-sm font-bold mb-2 text-blue-400">Add Episode</h3>
+                <form id="episodeForm" class="space-y-3">
+                    <input type="hidden" id="epWebseriesId">
+                    <div class="flex space-x-2">
+                        <input type="number" id="epNum" placeholder="#" required
+                            class="w-1/4 p-2 rounded bg-gray-600 border border-gray-500 text-white">
+                        <input type="text" id="epTitle" placeholder="Episode Title" required
+                            class="w-3/4 p-2 rounded bg-gray-600 border border-gray-500 text-white">
+                    </div>
+                    <input type="number" id="epDuration" placeholder="Duration (min)" required
+                        class="w-full p-2 rounded bg-gray-600 border border-gray-500 text-white">
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-500 py-2 rounded font-bold">Add
+                        Episode</button>
+                </form>
+            </div>
+
+            <!-- Episodes List -->
+            <div id="episodesList" class="overflow-y-auto flex-grow space-y-2">
+                <!-- Episodes injected via JS -->
+                <div class="text-center text-gray-500 mt-10">No series selected</div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+
+        // 1. Load Series
+        async function loadSeries() {
+            const res = await fetch(`${API_BASE}/series`);
+            const seriesList = await res.json();
+
+            const tbody = document.getElementById('seriesTableBody');
+            tbody.innerHTML = '';
+
+            seriesList.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-700 cursor-pointer transition';
+                tr.innerHTML = `
+                    <td class="p-3 text-sm">#${s.webseries_id}</td>
+                    <td class="p-3 font-medium text-white">${s.series_name}</td>
+                    <td class="p-3 text-xs">${s.ph_name}</td>
+                    <td class="p-3 text-xs">${s.language_name}</td>
+                    <td class="p-3">
+                        <button onclick="deleteSeries(${s.webseries_id}, event)" class="text-red-500 hover:text-red-400 text-xs">Del</button>
+                    </td>
+                `;
+                tr.onclick = () => selectSeries(s.webseries_id, s.series_name);
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 2. Load Episodes
+        async function selectSeries(seriesId, seriesName) {
+            document.getElementById('selectedSeriesTitle').innerText = `Viewing: ${seriesName}`;
+            document.getElementById('addEpisodeFormPanel').classList.remove('hidden');
+            document.getElementById('epWebseriesId').value = seriesId;
+
+            const res = await fetch(`${API_BASE}/series/${seriesId}/episodes`);
+            const episodes = await res.json();
+
+            const list = document.getElementById('episodesList');
+            list.innerHTML = '';
+
+            if (episodes.length === 0) {
+                list.innerHTML = '<div class="text-gray-500 text-center">No episodes found. Add one!</div>';
+                return;
+            }
+
+            episodes.forEach(ep => {
+                const item = document.createElement('div');
+                item.className = 'bg-gray-900 p-3 rounded flex justify-between items-center';
+                item.innerHTML = `
+                   <div>
+                        <span class="font-bold text-red-500 mr-2">Ep ${ep.episode_number}</span>
+                        <span class="text-gray-200">${ep.episode_title}</span>
+                   </div>
+                   <span class="text-xs text-gray-500">${ep.duration_min} min</span>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // 3. Create Series
+        document.getElementById('seriesForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                production_house_id: document.getElementById('prodHouseId').value,
+                series_name: document.getElementById('seriesName').value,
+                original_language_id: document.getElementById('langId').value,
+                release_date: document.getElementById('releaseDate').value
+            };
+
+            await fetch(`${API_BASE}/series`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            document.getElementById('seriesName').value = ''; // clear
+            loadSeries(); // refresh
+        });
+
+        // 4. Create Episode
+        document.getElementById('episodeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const webseriesId = document.getElementById('epWebseriesId').value;
+            const data = {
+                webseries_id: webseriesId,
+                episode_number: document.getElementById('epNum').value,
+                episode_title: document.getElementById('epTitle').value,
+                duration_min: document.getElementById('epDuration').value
+            };
+
+            await fetch(`${API_BASE}/episodes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            selectSeries(webseriesId, document.getElementById('selectedSeriesTitle').innerText.replace('Viewing: ', '')); // refresh
+        });
+
+        // 5. Delete Series
+        async function deleteSeries(id, event) {
+            event.stopPropagation(); // prevent row click
+            if (!confirm('Are you sure? This will delete all episodes too.')) return;
+
+            await fetch(`${API_BASE}/series/${id}`, { method: 'DELETE' });
+            loadSeries();
+        }
+
+        // Auth Logic
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        });
+
+        // Init
+        loadSeries();
+    </script>
+</body>
+
+</html>
