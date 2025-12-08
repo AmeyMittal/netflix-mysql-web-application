@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,19 +13,23 @@
             background-position: center;
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         }
+
         .btn-netflix {
             background-color: #e50914;
             color: white;
         }
+
         .btn-netflix:hover {
             background-color: #c10912;
         }
+
         /* Glassmorphism for login box */
         .login-box {
             background-color: rgba(0, 0, 0, 0.75);
         }
     </style>
 </head>
+
 <body class="bg-black text-white h-screen flex flex-col">
 
     <!-- Navbar -->
@@ -46,14 +51,14 @@
                         class="block w-full rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 focus:bg-gray-600 focus:outline-none placeholder-gray-400 peer"
                         placeholder="Emall or phone number">
                 </div>
-                
+
                 <div class="relative">
                     <input type="password" id="password" required
                         class="block w-full rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 focus:bg-gray-600 focus:outline-none placeholder-gray-400"
                         placeholder="Password">
                 </div>
 
-                <button type="submit" 
+                <button type="submit"
                     class="btn-netflix w-full h-12 rounded font-bold text-lg mt-8 transition duration-200">
                     Sign In
                 </button>
@@ -68,7 +73,8 @@
             </form>
 
             <div class="mt-16">
-                <p class="text-gray-500 text-base">New to Netflix? <a href="#" class="text-white hover:underline font-medium">Sign up now.</a></p>
+                <p class="text-gray-500 text-base">New to Netflix? <a href="#"
+                        class="text-white hover:underline font-medium">Sign up now.</a></p>
                 <div class="mt-4 text-xs text-gray-500">
                     This page is a course project and is NOT protected by Google reCAPTCHA.
                 </div>
@@ -99,14 +105,15 @@
 
                 if (response.ok) {
                     // Login Success
-                    // Store user info in LocalStorage
-                    localStorage.setItem('user', JSON.stringify(data.user));
+                    const role = data.user.role;
 
-                    // Redirect based on Role
-                    if (data.user.role === 'ADMIN' || data.user.role === 'EMPLOYEE') {
-                        window.location.href = '/admin.html';
+                    if (role === 'ADMIN' || role === 'EMPLOYEE') {
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                        window.location.href = 'admin_dashboard.html';
                     } else {
-                        window.location.href = '/dashboard.html';
+                        // Viewers are not allowed in the Management App
+                        errorDiv.innerText = 'Access Restricted: This portal is for Administrators only.';
+                        errorDiv.classList.remove('hidden');
                     }
                 } else {
                     // Login Failed
@@ -121,4 +128,5 @@
         });
     </script>
 </body>
+
 </html>

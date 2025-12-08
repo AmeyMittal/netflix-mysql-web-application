@@ -295,7 +295,7 @@ app.get('/api/production-houses', async (req, res) => {
 app.get('/api/contracts', async (req, res) => {
     try {
         const sql = `
-            SELECT c.contract_id, ws.series_name, ph.ph_name, c.contract_date, c.charge_per_episode
+            SELECT c.contract_id, c.webseries_id, ws.series_name, ph.ph_name, c.contract_date, c.charge_per_episode
             FROM AA_CONTRACT c
             JOIN AA_WEB_SERIES ws ON c.webseries_id = ws.webseries_id
             JOIN AA_PRODUCTION_HOUSE ph ON ws.production_house_id = ph.production_house_id
@@ -376,6 +376,46 @@ app.post('/api/feedback', async (req, res) => {
             [account_id, webseries_id, feedback_text, rating]
         );
         res.json({ message: 'Feedback Submitted!' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// --- USER MANAGEMENT ROUTES ---
+
+// 1. Get All Viewers (From AA_VIEWER_ACCOUNT, the source of truth)
+app.get('/api/viewers', async (req, res) => {
+    try {
+        const sql = `
+            SELECT va.*, u.email as login_email, u.user_id
+            FROM AA_VIEWER_ACCOUNT va
+            LEFT JOIN AA_USERS u ON va.account_id = u.account_id
+            ORDER BY va.account_id ASC
+        `;
+        const [rows] = await pool.execute(sql);
+        console.log('DEBUG /api/viewers Row 0:', rows.length > 0 ? rows[0] : 'No Data');
+        res.json(rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// 2. Get Viewing History for a specific Account
+app.get('/api/viewers/:id/history', async (req, res) => {
+    const accountId = req.params.id; // Now receiving account_id
+    try {
+        const sql = `
+            SELECT vh.view_timestamp, ws.series_name, ep.episode_title, ep.duration_min
+            FROM AA_VIEW_HISTORY vh
+            JOIN AA_EPISODE ep ON vh.episode_id = ep.episode_id
+            JOIN AA_WEB_SERIES ws ON ep.webseries_id = ws.webseries_id
+            WHERE vh.account_id = ?
+            ORDER BY vh.view_timestamp DESC
+        `;
+        const [rows] = await pool.execute(sql, [accountId]);
+        res.json(rows);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Database error' });
