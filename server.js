@@ -126,6 +126,23 @@ app.get('/api/analytics/genre-distribution', async (req, res) => {
     }
 });
 
+// --- REFERENCE DATA ROUTES ---
+
+app.get('/api/genres', async (req, res) => {
+    const [rows] = await pool.execute('SELECT * FROM AA_GENRE ORDER BY genre_name');
+    res.json(rows);
+});
+
+app.get('/api/languages', async (req, res) => {
+    const [rows] = await pool.execute('SELECT * FROM AA_LANGUAGE ORDER BY language_name');
+    res.json(rows);
+});
+
+app.get('/api/countries', async (req, res) => {
+    const [rows] = await pool.execute('SELECT * FROM AA_COUNTRY ORDER BY country_name');
+    res.json(rows);
+});
+
 // --- CONTENT MANAGEMENT ROUTES (CRUD) ---
 
 // 1. Get All Web Series (with Production House Name)
@@ -146,7 +163,67 @@ app.get('/api/series', async (req, res) => {
     }
 });
 
-// 2. Create Web Series
+// 2a. Comprehensive Create Series (Transaction)
+app.post('/api/series/full', async (req, res) => {
+    const {
+        production_house_id, series_name, original_language_id, release_date,
+        contract_date, charge_per_episode,
+        genre_ids, // Array
+        dubbing_language_ids, // Array
+        release_country_ids // Array
+    } = req.body;
+
+    const connection = await pool.getConnection(); // Need dedicated connection for transaction
+
+    try {
+        await connection.beginTransaction();
+
+        // 1. Insert Web Series
+        const [seriesResult] = await connection.execute(
+            'INSERT INTO AA_WEB_SERIES (production_house_id, series_name, original_language_id, release_date) VALUES (?, ?, ?, ?)',
+            [production_house_id, series_name, original_language_id, release_date]
+        );
+        const newSeriesId = seriesResult.insertId;
+
+        // 2. Insert Contract
+        if (contract_date && charge_per_episode) {
+            await connection.execute(
+                'INSERT INTO AA_CONTRACT (webseries_id, contract_date, charge_per_episode) VALUES (?, ?, ?)',
+                [newSeriesId, contract_date, charge_per_episode]
+            );
+        }
+
+        // 3. Insert Genres
+        if (genre_ids && genre_ids.length > 0) {
+            const genreValues = genre_ids.map(id => [newSeriesId, id]);
+            await connection.query('INSERT INTO AA_WEBSERIES_GENRE (webseries_id, genre_id) VALUES ?', [genreValues]);
+        }
+
+        // 4. Insert Dubbing Languages
+        if (dubbing_language_ids && dubbing_language_ids.length > 0) {
+            const dubValues = dubbing_language_ids.map(id => [newSeriesId, id]);
+            await connection.query('INSERT INTO AA_WEBSERIES_DUBBING (webseries_id, language_id) VALUES ?', [dubValues]);
+        }
+
+        // 5. Insert Release Countries
+        if (release_country_ids && release_country_ids.length > 0) {
+            const countryValues = release_country_ids.map(id => [newSeriesId, id]);
+            await connection.query('INSERT INTO AA_RELEASE_COUNTRY (webseries_id, country_id) VALUES ?', [countryValues]);
+        }
+
+        await connection.commit();
+        res.json({ message: 'Series created successfully with all details!', id: newSeriesId });
+
+    } catch (err) {
+        await connection.rollback();
+        console.error('Transaction Error:', err);
+        res.status(500).json({ error: 'Failed to create series. Transaction rolled back.' });
+    } finally {
+        connection.release();
+    }
+});
+
+// 2. Create Web Series (Simple)
 app.post('/api/series', async (req, res) => {
     const { production_house_id, series_name, original_language_id, release_date } = req.body;
     try {
