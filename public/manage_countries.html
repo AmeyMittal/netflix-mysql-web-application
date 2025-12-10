@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix Admin - Manage Countries</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://kit.fontawesome.com/your-code.js" crossorigin="anonymous"></script> <!-- Optional for icons -->
+</head>
+
+<body class="bg-gray-900 text-white flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-black border-r border-gray-800 flex flex-col">
+        <div class="p-6">
+            <h1 class="text-red-600 text-3xl font-bold uppercase">NEWS Admin</h1>
+        </div>
+        <nav class="flex-grow px-4 space-y-2">
+            <a href="admin_dashboard.html"
+                class="block py-3 px-4 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition">
+                📊 Dashboard
+            </a>
+            <a href="manage_countries.html" class="block py-3 px-4 rounded bg-gray-800 text-white font-bold">
+                🌎 Manage Countries
+            </a>
+            <!-- Links to other pages (omitted for brevity) -->
+        </nav>
+        <div class="p-4 border-t border-gray-800">
+            <button id="logoutBtn" class="w-full text-left py-2 px-4 hover:text-red-500 text-sm">Sign Out</button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-10 overflow-auto">
+        <header class="flex justify-between items-center mb-10">
+            <h2 class="text-3xl font-bold">Country Management</h2>
+            <button onclick="openModal()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-bold">
+                + Add Country
+            </button>
+        </header>
+
+        <!-- Suggestions Table -->
+        <h3 class="text-xl font-bold mt-10 mb-4 text-gray-300">Pending Suggestions</h3>
+        <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden mb-10">
+            <table class="w-full text-left">
+                <thead class="bg-gray-900 text-gray-400 uppercase font-bold text-sm">
+                    <tr>
+                        <th class="p-4">Suggested Name</th>
+                        <th class="p-4">Requested By</th>
+                        <th class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="suggestionTable" class="divide-y divide-gray-700">
+                    <!-- Rows injected here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Official Countries -->
+        <h3 class="text-xl font-bold mb-4 text-gray-300">Official Countries Needs to be verified </h3>
+        <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-gray-900 text-gray-400 uppercase font-bold text-sm">
+                    <tr>
+                        <th class="p-4">ID</th>
+                        <th class="p-4">Country Name</th>
+                        <th class="p-4">ISO Code</th>
+                        <th class="p-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="countryTable" class="divide-y divide-gray-700">
+                    <!-- Rows injected here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div id="countryModal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-96 relative">
+            <h3 id="modalTitle" class="text-2xl font-bold mb-6">Add Country</h3>
+            <form id="countryForm">
+                <input type="hidden" id="editId">
+                <input type="hidden" id="originalSuggestion"> <!-- For approval flow -->
+
+                <div class="mb-4">
+                    <label class="block text-gray-400 text-sm mb-2">Name</label>
+                    <input type="text" id="cName" required
+                        class="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-400 text-sm mb-2">ISO Code</label>
+                    <input type="text" id="cCode" required maxlength="2"
+                        class="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600 uppercase">
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal()"
+                        class="px-4 py-2 rounded border border-gray-600 hover:bg-gray-700">Cancel</button>
+                    <button type="submit" class="px-4 py-2 rounded bg-red-600 hover:bg-red-700 font-bold">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Auth Logic
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role === 'VIEWER') window.location.href = 'index.html';
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        });
+
+        // App Logic
+        async function loadData() {
+            await fetchCountries();
+            await fetchSuggestions();
+        }
+
+        async function fetchCountries() {
+            const res = await fetch('/api/countries');
+            // Note: Public API filters out 999. If admins need to see 999 to manage it, we might need a separate /api/admin/countries GET.
+            // For now, let's reuse valid countries. If you want admins to see ALL (including 999), we can make a specific admin endpoint or just fetch valid ones.
+            // Let's assume admins manage the "real" list.
+            const list = await res.json();
+
+            const tbody = document.getElementById('countryTable');
+            tbody.innerHTML = '';
+
+            list.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4 text-gray-400">#${c.country_id}</td>
+                    <td class="p-4 font-bold">${c.country_name}</td>
+                    <td class="p-4"><span class="bg-gray-700 px-2 py-1 rounded text-xs">${c.country_code_iso}</span></td>
+                    <td class="p-4 text-right space-x-2">
+                        <button onclick="editCountry(${c.country_id}, '${c.country_name}', '${c.country_code_iso}')" class="text-blue-400 hover:underline">Edit</button>
+                        <button onclick="deleteCountry(${c.country_id})" class="text-red-500 hover:underline">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function fetchSuggestions() {
+            const res = await fetch('/api/admin/suggestions');
+            const list = await res.json();
+
+            const tbody = document.getElementById('suggestionTable');
+            tbody.innerHTML = '';
+
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-gray-500 text-center">No pending suggestions.</td></tr>';
+                return;
+            }
+
+            list.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4 font-bold text-yellow-500">${s.suggested_country_name}</td>
+                    <td class="p-4 text-gray-400">${s.user_count} users</td>
+                    <td class="p-4 text-right">
+                        <button onclick="approveSuggestion('${s.suggested_country_name}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded font-bold text-xs transition">
+                            ✓ Verify & Add
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Modal Logic
+        const modal = document.getElementById('countryModal');
+        const form = document.getElementById('countryForm');
+
+        function openModal() {
+            document.getElementById('editId').value = '';
+            document.getElementById('originalSuggestion').value = ''; // Reset
+            document.getElementById('cName').value = '';
+            document.getElementById('cCode').value = '';
+            document.getElementById('modalTitle').innerText = 'Add Country';
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        function editCountry(id, name, code) {
+            document.getElementById('originalSuggestion').value = '';
+            document.getElementById('editId').value = id;
+            document.getElementById('cName').value = name;
+            document.getElementById('cCode').value = code;
+            document.getElementById('modalTitle').innerText = 'Edit Country';
+            modal.classList.remove('hidden');
+        }
+
+        function approveSuggestion(suggestedName) {
+            document.getElementById('editId').value = '';
+            document.getElementById('originalSuggestion').value = suggestedName;
+            document.getElementById('cName').value = suggestedName;
+            document.getElementById('cCode').value = ''; // Admin must fill this
+            document.getElementById('modalTitle').innerText = 'Verify Country';
+            modal.classList.remove('hidden');
+        }
+
+        // CRUD Logic
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editId').value;
+            const originalSuggestion = document.getElementById('originalSuggestion').value; // Check for approval flow
+            const name = document.getElementById('cName').value;
+            const code = document.getElementById('cCode').value;
+
+            // Scenario 1: Approve Suggestion
+            if (originalSuggestion) {
+                try {
+                    const res = await fetch('/api/admin/approve-country', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            suggested_name: originalSuggestion,
+                            official_name: name,
+                            official_code: code
+                        })
+                    });
+                    if (res.ok) {
+                        closeModal();
+                        loadData();
+                    } else {
+                        const d = await res.json();
+                        alert("Error: " + d.error);
+                    }
+                } catch (err) { console.error(err); }
+                return;
+            }
+
+            // Scenario 2: Normal Add/Edit
+            const url = id ? `/api/admin/countries/${id}` : '/api/admin/countries';
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ country_name: name, country_code_iso: code })
+                });
+
+                if (res.ok) {
+                    closeModal();
+                    loadData();
+                } else {
+                    const d = await res.json();
+                    alert("Error: " + d.error);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        async function deleteCountry(id) {
+            if (!confirm('Are you sure? This might fail if users are linked to this country.')) return;
+            try {
+                const res = await fetch(`/api/admin/countries/${id}`, { method: 'DELETE' });
+                if (res.ok) loadData();
+                else alert("Cannot delete. Likely in use.");
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+
+</html>

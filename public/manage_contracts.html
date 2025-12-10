@@ -72,15 +72,141 @@
 
         <!-- Prod Houses List -->
         <div class="w-1/3 bg-gray-800 rounded-lg p-6 shadow-lg flex flex-col">
-            <header class="mb-6">
+            <header class="mb-4">
                 <h2 class="text-2xl font-bold">Production Houses</h2>
             </header>
-            <ul id="phList" class="space-y-2 overflow-y-auto">
+
+            <!-- Search Bar -->
+            <div class="mb-4">
+                <input type="text" id="phSearch" placeholder="Search by name..."
+                    class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+            </div>
+
+            <!-- Add Button -->
+            <button onclick="openAddPHModal()"
+                class="mb-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition">
+                + Add Production House
+            </button>
+
+            <ul id="phList" class="space-y-2 overflow-y-auto flex-grow">
                 <!-- List items via JS -->
             </ul>
         </div>
 
     </main>
+
+    <!-- Add Production House Modal -->
+    <div id="addPHModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-700 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-white">Add Production House</h3>
+            <form id="addPHForm" class="space-y-3">
+                <div>
+                    <label class="block text-gray-400 text-sm mb-1">Name *</label>
+                    <input type="text" id="phName" required
+                        class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-sm mb-1">Street *</label>
+                    <input type="text" id="phStreet" required
+                        class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">City *</label>
+                        <input type="text" id="phCity" required
+                            class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">State</label>
+                        <input type="text" id="phState"
+                            class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">Zip Code *</label>
+                        <input type="text" id="phZip" required
+                            class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">Year Est. *</label>
+                        <input type="number" id="phYear" required min="1800" max="2100"
+                            class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-sm mb-1">Country *</label>
+                    <select id="phCountry" required
+                        class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                        <option value="">Select country...</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" onclick="closeAddPHModal()"
+                        class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                    <button type="submit"
+                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-bold">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Production House Modal -->
+    <div id="editPHModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-700 shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-white">Edit Production House</h3>
+            <form id="editPHForm" class="space-y-3">
+                <input type="hidden" id="editPHId">
+                <div>
+                    <label class="block text-gray-400 text-sm mb-1">Name *</label>
+                    <input type="text" id="editPHName" required
+                        class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-sm mb-1">Street *</label>
+                    <input type="text" id="editPHStreet" required
+                        class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">City *</label>
+                        <input type="text" id="editPHCity" required
+                            class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">State</label>
+                        <input type="text" id="editPHState"
+                            class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">Zip Code *</label>
+                        <input type="text" id="editPHZip" required
+                            class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 text-sm mb-1">Year Est. *</label>
+                        <input type="number" id="editPHYear" required min="1800" max="2100"
+                            class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-sm mb-1">Country *</label>
+                    <select id="editPHCountry" required
+                        class="w-full p-2 rounded bg-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-600">
+                        <option value="">Select country...</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" onclick="closeEditPHModal()"
+                        class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                    <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-bold">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Renew Confirmation Modal -->
     <div id="renewModal" class="hidden fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
@@ -161,17 +287,198 @@
         }
 
         // 2. Load Production Houses
-        async function loadPH() {
-            const res = await fetch(`${API_BASE}/production-houses`);
+        async function loadPH(searchTerm = '') {
+            const params = searchTerm ? `?name=${encodeURIComponent(searchTerm)}` : '';
+            const res = await fetch(`${API_BASE}/admin/production-houses${params}`);
             const houses = await res.json();
             const ul = document.getElementById('phList');
+            ul.innerHTML = '';
+
+            if (houses.length === 0) {
+                ul.innerHTML = '<li class="p-3 bg-gray-900 rounded text-sm text-gray-500 text-center">No production houses found</li>';
+                return;
+            }
 
             houses.forEach(ph => {
                 const li = document.createElement('li');
-                li.className = 'p-3 bg-gray-900 rounded text-sm text-gray-300';
-                li.innerText = `${ph.ph_name} (${ph.ph_city})`;
+                li.className = 'p-3 bg-gray-900 rounded text-sm text-gray-300 hover:bg-gray-700 transition';
+                li.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-grow">
+                            <div class="font-bold text-white">${ph.ph_name}</div>
+                            <div class="text-xs text-gray-400 mt-1">${ph.ph_city}, ${ph.country_name || 'N/A'}</div>
+                            <div class="text-xs text-gray-500 mt-1">${ph.series_count} series • Est. ${ph.year_established}</div>
+                        </div>
+                        <div class="flex space-x-1 ml-2">
+                            <button onclick="openEditPHModal(${ph.production_house_id})" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs">
+                                Edit
+                            </button>
+                            <button onclick="deletePH(${ph.production_house_id}, '${ph.ph_name.replace(/'/g, "\\'")}', ${ph.series_count})" 
+                                class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs">
+                                Del
+                            </button>
+                        </div>
+                    </div>
+                `;
                 ul.appendChild(li);
             });
+        }
+
+        // Search Handler
+        document.getElementById('phSearch').addEventListener('input', (e) => {
+            loadPH(e.target.value);
+        });
+
+        // Modal Functions
+        function openAddPHModal() {
+            document.getElementById('addPHModal').classList.remove('hidden');
+        }
+
+        function closeAddPHModal() {
+            document.getElementById('addPHModal').classList.add('hidden');
+            document.getElementById('addPHForm').reset();
+        }
+
+        // Load Countries for Dropdown
+        async function loadCountries() {
+            const res = await fetch('/api/countries');
+            const countries = await res.json();
+            const addSelect = document.getElementById('phCountry');
+            const editSelect = document.getElementById('editPHCountry');
+
+            countries.forEach(c => {
+                const opt1 = document.createElement('option');
+                opt1.value = c.country_id;
+                opt1.textContent = c.country_name;
+                addSelect.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = c.country_id;
+                opt2.textContent = c.country_name;
+                editSelect.appendChild(opt2);
+            });
+        }
+
+        // Add Production House
+        document.getElementById('addPHForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                ph_name: document.getElementById('phName').value,
+                ph_street: document.getElementById('phStreet').value,
+                ph_city: document.getElementById('phCity').value,
+                ph_state: document.getElementById('phState').value,
+                ph_zip_code: document.getElementById('phZip').value,
+                ph_country_id: parseInt(document.getElementById('phCountry').value),
+                year_established: parseInt(document.getElementById('phYear').value)
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/production-houses`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    showAdminToast();
+                    closeAddPHModal();
+                    loadPH();
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + err.error);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Network error');
+            }
+        });
+
+        // Edit Production House Modal
+        async function openEditPHModal(id) {
+            const res = await fetch(`${API_BASE}/admin/production-houses/${id}`);
+            const ph = await res.json();
+
+            if (!ph) return;
+
+            document.getElementById('editPHId').value = ph.production_house_id;
+            document.getElementById('editPHName').value = ph.ph_name;
+            document.getElementById('editPHStreet').value = ph.ph_street || '';
+            document.getElementById('editPHCity').value = ph.ph_city;
+            document.getElementById('editPHState').value = ph.ph_state || '';
+            document.getElementById('editPHZip').value = ph.ph_zip_code;
+            document.getElementById('editPHCountry').value = ph.ph_country_id;
+            document.getElementById('editPHYear').value = ph.year_established;
+
+            document.getElementById('editPHModal').classList.remove('hidden');
+        }
+
+        function closeEditPHModal() {
+            document.getElementById('editPHModal').classList.add('hidden');
+        }
+
+        // Update Production House
+        document.getElementById('editPHForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('editPHId').value;
+            const data = {
+                ph_name: document.getElementById('editPHName').value,
+                ph_street: document.getElementById('editPHStreet').value,
+                ph_city: document.getElementById('editPHCity').value,
+                ph_state: document.getElementById('editPHState').value,
+                ph_zip_code: document.getElementById('editPHZip').value,
+                ph_country_id: parseInt(document.getElementById('editPHCountry').value),
+                year_established: parseInt(document.getElementById('editPHYear').value)
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/production-houses/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    showAdminToast();
+                    closeEditPHModal();
+                    loadPH();
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + err.error);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Network error');
+            }
+        });
+
+        // Delete Production House
+        async function deletePH(id, name, seriesCount) {
+            if (seriesCount > 0) {
+                alert(`Cannot delete "${name}" - it has ${seriesCount} series linked to it. Please reassign or delete those series first.`);
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/production-houses/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    showAdminToast();
+                    loadPH();
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + err.error);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Network error');
+            }
         }
 
         // 3. Confirm Renew Action
@@ -201,6 +508,7 @@
 
         loadContracts();
         loadPH();
+        loadCountries();
     </script>
 </body>
 

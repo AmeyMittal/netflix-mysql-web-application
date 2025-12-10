@@ -9,17 +9,27 @@
     <style>
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            background-color: #141414;
-            color: #fff;
+        }
+
+        .status-active {
+            color: #10b981;
+        }
+
+        .status-locked {
+            color: #ef4444;
+        }
+
+        .status-flagged {
+            color: #f59e0b;
         }
     </style>
 </head>
 
-<body class="flex flex-col md:flex-row min-h-screen">
+<body class="bg-gray-900 text-white flex h-screen">
 
     <!-- Sidebar -->
-    <aside class="w-full md:w-64 bg-black border-r border-gray-800 flex flex-col">
-        <div class="px-6 py-8">
+    <aside class="w-64 bg-black border-r border-gray-800 flex flex-col">
+        <div class="p-6">
             <h1 class="text-red-600 text-3xl font-bold uppercase">NEWS Admin</h1>
         </div>
         <nav class="flex-grow px-4 space-y-2">
@@ -27,248 +37,343 @@
                 class="block py-3 px-4 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition">
                 📊 Dashboard
             </a>
-            <a href="manage_content.html"
+            <a href="manage_countries.html"
                 class="block py-3 px-4 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition">
-                🎬 Web Series & Episodes
+                🌎 Manage Countries
             </a>
-            <a href="manage_contracts.html"
-                class="block py-3 px-4 rounded hover:bg-gray-800 text-gray-400 hover:text-white transition">
-                📜 Contracts & Producers
-            </a>
-            <a href="manage_users.html" class="block py-3 px-4 rounded bg-gray-800 text-white font-bold transition">
+            <a href="manage_users.html" class="block py-3 px-4 rounded bg-gray-800 text-white font-bold">
                 👥 Manage Viewers
             </a>
         </nav>
         <div class="p-4 border-t border-gray-800">
-            <button id="logoutBtn" class="w-full bg-red-600 text-white py-2 rounded font-bold hover:bg-red-700">
-                Sign Out
-            </button>
+            <button id="logoutBtn" class="w-full text-left py-2 px-4 hover:text-red-500 text-sm">Sign Out</button>
         </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-grow p-8">
-        <header class="flex justify-between items-center mb-8">
-            <h2 class="text-3xl font-bold">Registered Viewers</h2>
-            <div class="text-sm text-gray-400" id="adminEmail"></div>
+    <main class="flex-grow p-10 overflow-auto">
+        <header class="flex justify-between items-center mb-10">
+            <h2 class="text-3xl font-bold">User Management</h2>
+            <div class="text-gray-400 text-sm" id="userEmail"></div>
         </header>
 
-        <!-- Viewers Table -->
-        <div class="bg-gray-900 rounded-lg overflow-hidden shadow-lg border border-gray-800">
+        <!-- Search/Filter Section -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
+            <h3 class="text-xl font-bold mb-4 text-gray-300">Search & Filter</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-gray-400 text-sm mb-2">Email</label>
+                    <input type="text" id="filterEmail" placeholder="Search by email..."
+                        class="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-sm mb-2">Country</label>
+                    <select id="filterCountry"
+                        class="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
+                        <option value="">All Countries</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-sm mb-2">Status</label>
+                    <select id="filterStatus"
+                        class="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
+                        <option value="">All Statuses</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="LOCKED">Locked</option>
+                        <option value="FLAGGED">Flagged</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button onclick="searchUsers()"
+                        class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition">
+                        🔍 Search
+                    </button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <label class="block text-gray-400 text-sm mb-2">Min Charge ($)</label>
+                    <input type="number" id="filterMinCharge" placeholder="0" min="0" step="0.01"
+                        class="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-sm mb-2">Max Charge ($)</label>
+                    <input type="number" id="filterMaxCharge" placeholder="100" min="0" step="0.01"
+                        class="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
             <table class="w-full text-left">
-                <thead class="bg-gray-800 text-gray-400 uppercase text-xs">
+                <thead class="bg-gray-900 text-gray-400 uppercase font-bold text-sm">
                     <tr>
-                        <th class="p-4">Account ID</th>
+                        <th class="p-4">ID</th>
                         <th class="p-4">Name</th>
-                        <th class="p-4">Email (Login)</th>
-                        <th class="p-4">Service Charge</th>
-                        <th class="p-4">Actions</th>
+                        <th class="p-4">Email</th>
+                        <th class="p-4">Country</th>
+                        <th class="p-4">Charge</th>
+                        <th class="p-4">Status</th>
+                        <th class="p-4 text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="usersTableBody" class="divide-y divide-gray-800">
-                    <!-- JS Injected -->
+                <tbody id="usersTable" class="divide-y divide-gray-700">
+                    <!-- Rows injected here -->
                 </tbody>
             </table>
         </div>
-
     </main>
 
-    <!-- Watch History Modal -->
-    <div id="historyModal"
-        class="hidden fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-        <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full border border-gray-700 shadow-2xl relative">
-            <button onclick="closeModal()"
-                class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">×</button>
-
-            <h3 class="text-xl font-bold mb-4 text-white">Viewing History for <span id="modalUserEmail"
-                    class="text-red-500">User</span></h3>
-
-            <div class="h-96 overflow-y-auto bg-gray-900 rounded border border-gray-800 p-2">
-                <table class="w-full text-left text-sm">
-                    <thead class="text-gray-400 border-b border-gray-700">
-                        <tr>
-                            <th class="p-2">Date</th>
-                            <th class="p-2">Series</th>
-                            <th class="p-2">Episode</th>
-                            <th class="p-2">Duration</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyTableBody" class="text-gray-300">
-                        <!-- JS Injected -->
-                    </tbody>
-                </table>
-                <p id="noHistoryMsg" class="hidden text-center text-gray-500 mt-4">No viewing history found.</p>
-            </div>
-
-            <div class="mt-4 flex justify-end">
-                <button onclick="closeModal()"
-                    class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded">Close</button>
-            </div>
+    <!-- Edit Charge Modal -->
+    <div id="chargeModal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-96 relative">
+            <h3 class="text-2xl font-bold mb-6">Update Service Charge</h3>
+            <form id="chargeForm">
+                <input type="hidden" id="chargeAccountId">
+                <div class="mb-4">
+                    <label class="block text-gray-400 text-sm mb-2">Monthly Charge ($)</label>
+                    <input type="number" id="newCharge" required min="0" step="0.01"
+                        class="w-full p-2 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeChargeModal()"
+                        class="px-4 py-2 rounded border border-gray-600 hover:bg-gray-700">Cancel</button>
+                    <button type="submit" class="px-4 py-2 rounded bg-red-600 hover:bg-red-700 font-bold">Save</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- Profile Details Modal -->
-    <div id="detailsModal"
-        class="hidden fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-700 shadow-2xl relative">
-            <button onclick="closeDetailsModal()"
+    <!-- History Modal -->
+    <div id="historyModal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-3xl max-w-4xl relative">
+            <button onclick="closeHistoryModal()"
                 class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">×</button>
+            <h3 class="text-2xl font-bold mb-6">Watch History - <span id="historyUserName" class="text-red-500"></span>
+            </h3>
 
-            <h3 class="text-xl font-bold mb-4 text-white">Viewer Profile Details</h3>
-
-            <div id="detailsContent" class="space-y-3 text-gray-300 text-sm">
-                <!-- JS Injected -->
+            <div class="max-h-96 overflow-y-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-900 text-gray-400 uppercase text-xs sticky top-0">
+                        <tr>
+                            <th class="p-3">Date</th>
+                            <th class="p-3">Series</th>
+                            <th class="p-3">Episode</th>
+                            <th class="p-3">Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="divide-y divide-gray-700">
+                        <!-- Rows injected here -->
+                    </tbody>
+                </table>
+                <p id="noHistoryMsg" class="hidden text-center text-gray-500 mt-4 p-4">No viewing history found.</p>
             </div>
 
             <div class="mt-6 flex justify-end">
-                <button onclick="closeDetailsModal()"
-                    class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">Close</button>
+                <button onclick="closeHistoryModal()"
+                    class="px-4 py-2 rounded bg-gray-600 hover:bg-gray-700">Close</button>
             </div>
         </div>
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3000/api';
-        let allViewers = {}; // Store viewers by ID
-
-        // 1. Auth Check
+        // Auth
         const user = JSON.parse(localStorage.getItem('user'));
-        if (!user || (user.role !== 'ADMIN' && user.role !== 'EMPLOYEE')) {
-            window.location.href = 'index.html';
-        }
-        document.getElementById('adminEmail').innerText = user.email;
+        if (!user || user.role === 'VIEWER') window.location.href = 'index.html';
+        document.getElementById('userEmail').innerText = user.email;
         document.getElementById('logoutBtn').addEventListener('click', () => {
             localStorage.removeItem('user');
             window.location.href = 'index.html';
         });
 
-        // 2. Load Viewers
-        async function loadViewers() {
+        // Load Countries for Filter
+        async function loadCountries() {
+            const res = await fetch('/api/countries');
+            const countries = await res.json();
+            const select = document.getElementById('filterCountry');
+            countries.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.country_id;
+                opt.textContent = c.country_name;
+                select.appendChild(opt);
+            });
+        }
+
+        // Search Users
+        async function searchUsers() {
+            const email = document.getElementById('filterEmail').value;
+            const country_id = document.getElementById('filterCountry').value;
+            const status = document.getElementById('filterStatus').value;
+            const min_charge = document.getElementById('filterMinCharge').value;
+            const max_charge = document.getElementById('filterMaxCharge').value;
+
+            const params = new URLSearchParams();
+            if (email) params.append('email', email);
+            if (country_id) params.append('country_id', country_id);
+            if (status) params.append('status', status);
+            if (min_charge) params.append('min_charge', min_charge);
+            if (max_charge) params.append('max_charge', max_charge);
+
+            const res = await fetch(`/api/admin/viewers?${params}`);
+            const users = await res.json();
+            renderUsers(users);
+        }
+
+        // Render Users
+        function renderUsers(users) {
+            const tbody = document.getElementById('usersTable');
+            tbody.innerHTML = '';
+
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-500">No users found.</td></tr>';
+                return;
+            }
+
+            users.forEach(u => {
+                const statusClass = `status-${u.account_status.toLowerCase()}`;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4 text-gray-400">#${u.account_id}</td>
+                    <td class="p-4 font-bold">${u.viewer_first_name} ${u.viewer_last_name}</td>
+                    <td class="p-4 text-gray-300 text-sm">${u.viewer_email}</td>
+                    <td class="p-4 text-gray-400">${u.country_name || 'N/A'}</td>
+                    <td class="p-4 text-green-400">$${u.monthly_service_charge}</td>
+                    <td class="p-4"><span class="${statusClass} font-bold">${u.account_status}</span></td>
+                    <td class="p-4 text-right space-x-1">
+                        <button onclick="viewHistory(${u.account_id}, '${u.viewer_first_name} ${u.viewer_last_name}')" 
+                            class="bg-purple-600 hover:bg-purple-700 text-white px-2 py-1 rounded text-xs font-bold">
+                            History
+                        </button>
+                        <button onclick="editCharge(${u.account_id}, ${u.monthly_service_charge})" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-bold">
+                            Edit Charge
+                        </button>
+                        ${u.account_status !== 'LOCKED' ? `
+                            <button onclick="updateStatus(${u.account_id}, 'LOCKED')" 
+                                class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-bold">
+                                Lock
+                            </button>
+                        ` : ''}
+                        ${u.account_status !== 'FLAGGED' ? `
+                            <button onclick="updateStatus(${u.account_id}, 'FLAGGED')" 
+                                class="bg-orange-600 hover:bg-orange-700 text-white px-2 py-1 rounded text-xs font-bold">
+                                Flag
+                            </button>
+                        ` : ''}
+                        ${u.account_status !== 'ACTIVE' ? `
+                            <button onclick="updateStatus(${u.account_id}, 'ACTIVE')" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs font-bold">
+                                Activate
+                            </button>
+                        ` : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Edit Charge
+        function editCharge(accountId, currentCharge) {
+            document.getElementById('chargeAccountId').value = accountId;
+            document.getElementById('newCharge').value = currentCharge;
+            document.getElementById('chargeModal').classList.remove('hidden');
+        }
+
+        function closeChargeModal() {
+            document.getElementById('chargeModal').classList.add('hidden');
+        }
+
+        document.getElementById('chargeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const accountId = document.getElementById('chargeAccountId').value;
+            const newCharge = document.getElementById('newCharge').value;
+
             try {
-                const res = await fetch(`${API_BASE}/viewers`);
-                const viewers = await res.json();
-
-                const tbody = document.getElementById('usersTableBody');
-                tbody.innerHTML = '';
-                allViewers = {}; // Reset
-
-                if (viewers.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-500 text-lg">No viewers found in the database yet.</td></tr>`;
-                    return;
-                }
-
-                viewers.forEach(v => {
-                    allViewers[v.account_id] = v; // Store for modal
-
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-gray-800 transition';
-                    const name = (v.viewer_first_name || '') + ' ' + (v.viewer_last_name || '');
-
-                    // Email Logic: Show Profile Email. Login Email is usually same, but if missing, show Badge.
-                    let emailDisplay = v.viewer_email;
-                    if (v.login_email) {
-                        emailDisplay += ` <span class="ml-2 bg-green-900 text-green-300 text-xs px-2 py-0.5 rounded">Login Active</span>`;
-                    } else {
-                        emailDisplay += ` <span class="ml-2 bg-gray-700 text-gray-400 text-xs px-2 py-0.5 rounded">No Login</span>`;
-                    }
-
-                    tr.innerHTML = `
-                        <td class="p-4 text-gray-400">#${v.account_id}</td>
-                        <td class="p-4 font-bold text-white">${name}</td>
-                        <td class="p-4 text-gray-300 text-sm">${emailDisplay}</td>
-                        <td class="p-4 text-green-400">$${v.monthly_service_charge || '0.00'}</td>
-                        <td class="p-4 flex space-x-2">
-                            <button onclick="viewDetails(${v.account_id})"
-                                    class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm font-bold border border-gray-600">
-                                Details
-                            </button>
-                            <button onclick="viewHistory(${v.account_id}, '${v.viewer_first_name} ${v.viewer_last_name}')" 
-                                    class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm font-bold">
-                                History
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
+                const res = await fetch(`/api/admin/viewers/${accountId}/charge`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ monthly_service_charge: parseFloat(newCharge) })
                 });
+
+                if (res.ok) {
+                    closeChargeModal();
+                    searchUsers();
+                } else {
+                    const data = await res.json();
+                    alert('Error: ' + data.error);
+                }
             } catch (err) {
                 console.error(err);
-                const tbody = document.getElementById('usersTableBody');
-                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-500">Failed to connect to server.</td></tr>`;
+            }
+        });
+
+        // Update Status
+        async function updateStatus(accountId, newStatus) {
+            if (!confirm(`Are you sure you want to ${newStatus} this account?`)) return;
+
+            try {
+                const res = await fetch(`/api/admin/viewers/${accountId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ account_status: newStatus })
+                });
+
+                if (res.ok) {
+                    searchUsers();
+                } else {
+                    const data = await res.json();
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) {
+                console.error(err);
             }
         }
 
-        // 3. View History
-        async function viewHistory(accountId, name) {
-            document.getElementById('modalUserEmail').innerText = name;
+        // View History
+        async function viewHistory(accountId, userName) {
+            document.getElementById('historyUserName').innerText = userName;
             document.getElementById('historyModal').classList.remove('hidden');
 
             const tbody = document.getElementById('historyTableBody');
             const noMsg = document.getElementById('noHistoryMsg');
-            tbody.innerHTML = '';
-            noMsg.classList.remove('hidden'); // default show
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400">Loading...</td></tr>';
+            noMsg.classList.add('hidden');
 
             try {
-                const res = await fetch(`${API_BASE}/viewers/${accountId}/history`);
+                const res = await fetch(`/api/viewers/${accountId}/history`);
                 const history = await res.json();
 
-                if (history.length > 0) {
-                    noMsg.classList.add('hidden');
+                tbody.innerHTML = '';
+
+                if (history.length === 0) {
+                    noMsg.classList.remove('hidden');
+                } else {
                     history.forEach(h => {
                         const date = new Date(h.view_timestamp).toLocaleString();
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
-                            <td class="p-2 text-gray-400">${date}</td>
-                            <td class="p-2 font-medium text-white">${h.series_name}</td>
-                            <td class="p-2">${h.episode_title}</td>
-                            <td class="p-2 text-xs text-gray-500">${h.duration_min} min</td>
+                            <td class="p-3 text-gray-400">${date}</td>
+                            <td class="p-3 font-medium text-white">${h.series_name}</td>
+                            <td class="p-3">${h.episode_title}</td>
+                            <td class="p-3 text-xs text-gray-500">${h.duration_min} min</td>
                         `;
                         tbody.appendChild(tr);
                     });
                 }
             } catch (err) {
                 console.error(err);
-                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-red-500">Error loading history</td></tr>`;
+                tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Error loading history</td></tr>';
             }
         }
 
-        // 4. View Details
-        function viewDetails(accountId) {
-            const v = allViewers[accountId];
-            if (!v) return;
-
-            const content = document.getElementById('detailsContent');
-            const dateOpened = v.date_opened ? new Date(v.date_opened).toLocaleDateString() : 'N/A';
-
-            content.innerHTML = `
-                <div class="grid grid-cols-2 gap-y-2">
-                    <span class="text-gray-500">Account ID:</span> <span>${v.account_id}</span>
-                    <span class="text-gray-500">First Name:</span> <span>${v.viewer_first_name}</span>
-                    <span class="text-gray-500">Last Name:</span> <span>${v.viewer_last_name}</span>
-                    <span class="text-gray-500">Email:</span> <span>${v.viewer_email}</span>
-                    <span class="text-gray-500">Street:</span> <span>${v.viewer_street || '-'}</span>
-                    <span class="text-gray-500">City:</span> <span>${v.viewer_city || '-'}</span>
-                    <span class="text-gray-500">State:</span> <span>${v.viewer_state || '-'}</span>
-                    <span class="text-gray-500">Zip Code:</span> <span>${v.viewer_zip_code || '-'}</span>
-                    <span class="text-gray-500">Country ID:</span> <span>${v.viewer_country_id || '-'}</span>
-                    <span class="text-gray-500">Account Type:</span> <span>${v.account_type || '-'}</span>
-                    <span class="text-gray-500">Plan:</span> <span>${v.subscription_plan || '-'}</span>
-                    <span class="text-gray-500">Service Charge:</span> <span class="text-green-400">$${v.monthly_service_charge}</span>
-                    <span class="text-gray-500">Date Opened:</span> <span>${dateOpened}</span>
-                </div>
-            `;
-            document.getElementById('detailsModal').classList.remove('hidden');
-        }
-
-        function closeDetailsModal() {
-            document.getElementById('detailsModal').classList.add('hidden');
-        }
-
-        function closeModal() {
+        function closeHistoryModal() {
             document.getElementById('historyModal').classList.add('hidden');
         }
 
         // Init
-        loadViewers();
+        loadCountries();
+        searchUsers();
     </script>
 </body>
 

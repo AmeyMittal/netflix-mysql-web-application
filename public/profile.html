@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix - My Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-black text-white min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="flex justify-between items-center px-10 py-6 border-b border-gray-800">
+        <a href="browse.html" class="text-red-600 text-3xl font-bold uppercase tracking-tighter">NEWS</a>
+        <a href="browse.html" class="text-gray-400 hover:text-white">Back to Browse</a>
+    </nav>
+
+    <!-- Content -->
+    <div class="max-w-4xl mx-auto py-10 px-4">
+        <h1 class="text-4xl font-bold mb-8 border-b border-gray-700 pb-4">Account</h1>
+
+        <!-- Loading State -->
+        <div id="loading" class="text-center py-10">Loading profile...</div>
+
+        <!-- Profile Details -->
+        <div id="profileContent" class="hidden">
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+                <!-- Left: Membership Info -->
+                <div class="md:col-span-1">
+                    <h3 class="text-gray-400 uppercase text-sm font-bold mb-4">Membership & Billing</h3>
+                    <div class="bg-gray-100 text-black p-4 rounded mb-4">
+                        <p id="p_email" class="font-bold">email@example.com</p>
+                        <p class="text-xs text-gray-500 mt-1">Password: ********</p>
+                    </div>
+                    <button id="cancelAccountBtn"
+                        class="w-full bg-gray-200 text-black py-3 px-4 text-sm font-bold hover:bg-gray-300 transition">Cancel
+                        Membership</button>
+                    <p class="text-xs text-gray-500 mt-2 text-center">This will delete all your data.</p>
+                </div>
+
+                <!-- Right: Plan & Settings -->
+                <div class="md:col-span-2">
+
+                    <!-- Plan Details -->
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-gray-400 uppercase text-sm font-bold mb-1">Plan Details</h3>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-lg">Standard HD</span>
+                                <span class="bg-gray-800 text-xs px-2 py-0.5 rounded border border-gray-600">HD</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p id="p_charge" class="font-bold text-xl">$9.99</p>
+                            <p class="text-xs text-blue-500 hover:underline cursor-pointer">Change Plan</p>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-800 mb-6">
+
+                    <!-- Profile Info -->
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-gray-400 uppercase text-sm font-bold mb-2">Profile & Address</h3>
+                            <div class="space-y-1 text-gray-300">
+                                <p id="p_name" class="font-bold text-white text-lg"></p>
+                                <p id="p_addr"></p>
+                                <p id="p_csz"></p> <!-- City State Zip -->
+                                <p id="p_country" class="text-sm text-gray-400 mt-2 font-bold"></p>
+                            </div>
+                        </div>
+                        <button id="editProfileBtn" class="text-blue-500 hover:underline text-sm font-bold">Edit
+                            Profile</button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50">
+        <div class="bg-zinc-900 p-8 rounded shadow-2xl w-full max-w-md border border-zinc-700">
+            <h2 class="text-2xl font-bold mb-6">Edit Profile</h2>
+            <form id="editForm" class="space-y-4">
+                <div>
+                    <label class="text-xs text-gray-400">Street Address</label>
+                    <input type="text" id="m_street"
+                        class="w-full bg-zinc-800 rounded px-4 py-2 border border-zinc-700 focus:border-white outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-400">City</label>
+                        <input type="text" id="m_city"
+                            class="w-full bg-zinc-800 rounded px-4 py-2 border border-zinc-700 focus:border-white outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400">State</label>
+                        <input type="text" id="m_state"
+                            class="w-full bg-zinc-800 rounded px-4 py-2 border border-zinc-700 focus:border-white outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400">Zip Code</label>
+                    <input type="text" id="m_zip"
+                        class="w-full bg-zinc-800 rounded px-4 py-2 border border-zinc-700 focus:border-white outline-none">
+                </div>
+
+                <div class="flex space-x-3 mt-6">
+                    <button type="submit"
+                        class="flex-1 bg-red-600 hover:bg-red-700 py-2 rounded font-bold">Save</button>
+                    <button type="button" id="closeModalBtn"
+                        class="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded font-bold">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 1. Security & Auth
+        const checkAuth = () => {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (!user || !user.accountId) {
+                window.location.replace('index.html');
+                return null; // Stop further execution if not authenticated
+            }
+            return user;
+        };
+
+        let user = checkAuth(); // Initialize user using the new function
+
+        window.addEventListener('pageshow', (event) => {
+            // If the page is loaded from cache (persisted) or user is no longer in localStorage, re-check auth
+            if (event.persisted || !localStorage.getItem('user')) {
+                checkAuth();
+            }
+        });
+
+        // If checkAuth redirected, the script would have stopped.
+        // So, 'user' is guaranteed to be valid here.
+        const accountId = user.accountId;
+        let pData = {};
+
+        // 1. Fetch
+        async function loadProfile() {
+            try {
+                const res = await fetch(`/api/profile/${accountId}`);
+                if (!res.ok) throw new Error("Failed to load");
+                pData = await res.json();
+
+                // Render
+                document.getElementById('p_email').innerText = pData.viewer_email;
+                document.getElementById('p_name').innerText = `${pData.viewer_first_name} ${pData.viewer_last_name}`;
+                document.getElementById('p_addr').innerText = pData.viewer_street;
+                document.getElementById('p_csz').innerText = `${pData.viewer_city}, ${pData.viewer_state || ''} ${pData.viewer_zip_code}`;
+                document.getElementById('p_country').innerText = pData.country_name.toUpperCase();
+                document.getElementById('p_charge').innerText = `$${parseFloat(pData.monthly_service_charge).toFixed(2)}`;
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('profileContent').classList.remove('hidden');
+
+            } catch (e) {
+                document.getElementById('loading').innerText = "Error loading profile.";
+            }
+        }
+        loadProfile();
+
+        // 2. Edit Modal
+        const modal = document.getElementById('editModal');
+        document.getElementById('editProfileBtn').addEventListener('click', () => {
+            document.getElementById('m_street').value = pData.viewer_street;
+            document.getElementById('m_city').value = pData.viewer_city;
+            document.getElementById('m_state').value = pData.viewer_state;
+            document.getElementById('m_zip').value = pData.viewer_zip_code;
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+        });
+
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+        });
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                viewer_street: document.getElementById('m_street').value,
+                viewer_city: document.getElementById('m_city').value,
+                viewer_state: document.getElementById('m_state').value,
+                viewer_zip_code: document.getElementById('m_zip').value
+            };
+
+            const res = await fetch(`/api/profile/${accountId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Profile Updated!");
+                modal.classList.add('hidden');
+                loadProfile(); // Reload
+            } else {
+                alert("Update failed.");
+            }
+        });
+
+        // 3. Delete
+        document.getElementById('cancelAccountBtn').addEventListener('click', async () => {
+            if (confirm("Are you sure? This cannot be undone.")) {
+                const res = await fetch(`/api/profile/${accountId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    alert("Account Deleted.");
+                    localStorage.clear();
+                    window.location.href = 'index.html';
+                } else {
+                    alert("Delete failed.");
+                }
+            }
+        });
+
+    </script>
+</body>
+
+</html>

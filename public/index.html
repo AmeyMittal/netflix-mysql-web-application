@@ -73,7 +73,7 @@
             </form>
 
             <div class="mt-16">
-                <p class="text-gray-500 text-base">New to Netflix? <a href="#"
+                <p class="text-gray-500 text-base">New to Netflix? <a href="signup.html"
                         class="text-white hover:underline font-medium">Sign up now.</a></p>
                 <div class="mt-4 text-xs text-gray-500">
                     This page is a course project and is NOT protected by Google reCAPTCHA.
@@ -110,14 +110,25 @@
                     if (role === 'ADMIN' || role === 'EMPLOYEE') {
                         localStorage.setItem('user', JSON.stringify(data.user));
                         window.location.href = 'admin_dashboard.html';
+                    } else if (role === 'VIEWER') {
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                        window.location.href = 'browse.html';
                     } else {
-                        // Viewers are not allowed in the Management App
-                        errorDiv.innerText = 'Access Restricted: This portal is for Administrators only.';
+                        errorDiv.innerText = 'Unknown Role';
                         errorDiv.classList.remove('hidden');
                     }
                 } else {
                     // Login Failed
-                    errorDiv.innerText = data.error || 'Login failed. Please try again.';
+                    // Check if it's a locked account
+                    if (data.status === 'LOCKED') {
+                        errorDiv.innerHTML = `
+                            <div class="font-bold text-red-500">⚠️ Account ${data.status}</div>
+                            <div class="text-sm mt-1">${data.error}</div>
+                        `;
+                        errorDiv.classList.add('bg-red-900', 'border', 'border-red-600', 'p-4', 'rounded');
+                    } else {
+                        errorDiv.innerText = data.error || 'Login failed. Please try again.';
+                    }
                     errorDiv.classList.remove('hidden');
                 }
             } catch (err) {

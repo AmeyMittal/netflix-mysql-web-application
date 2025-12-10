@@ -7,10 +7,17 @@ const mysql = require('mysql2/promise');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
+// Middleware to parse JSON
+app.use(express.json());
 app.use(express.static('public')); // Serve frontend files
+
+// Security: Disable Caching to prevent Back Button access after logout
+app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    next();
+});
 
 // Database Connection Pool
 const pool = mysql.createPool({
@@ -42,6 +49,96 @@ const bcrypt = require('bcrypt');
 
 // --- API ROUTES ---
 
+// Register Endpoint
+app.post('/api/signup', async (req, res) => {
+    const {
+        role, email, password,
+        first_name, last_name,
+        street, city, state, zip_code,
+        country_id, suggested_country_name, // Updated Fields
+        phone
+    } = req.body;
+
+    if (!email || !password || !first_name || !last_name || !role || !country_id || !zip_code) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // 1. Check if email already exists
+        const [existing] = await connection.execute('SELECT user_id FROM AA_USERS WHERE email = ?', [email]);
+        if (existing.length > 0) {
+            throw new Error('Email already registered');
+        }
+
+        // 2. Handle Country
+        let countryIdToUse = country_id;
+
+        // If "Other" (999) is selected, use it and ignore creation logic for now
+        // The admin will review `suggested_country_name` later
+        if (parseInt(country_id) === 999) {
+            // Logic handled below in INSERT
+        } else {
+            // Standard flow: Use existing ID (Validation could go here)
+        }
+
+        /* 
+           Original Auto-create logic removed for Role Separation. 
+           Now we strictly use the ID provided (or 999).
+        */
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        let accountId = null;
+        let producerId = null;
+
+        // 3. Create Entity based on Role
+        if (role === 'VIEWER') {
+            // 3. Insert into AA_VIEWER_ACCOUNT
+            // Note: added suggested_country_name to query
+            const [accountResult] = await connection.execute(
+                `INSERT INTO AA_VIEWER_ACCOUNT 
+                (viewer_email, viewer_first_name, viewer_last_name, viewer_street, viewer_city, viewer_state, viewer_zip_code, viewer_country_id, suggested_country_name, date_opened, monthly_service_charge) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 15.00)`,
+                [email, first_name, last_name, street, city, state, zip_code, countryIdToUse, suggested_country_name || null]
+            );
+            accountId = accountResult.insertId;
+
+        } else if (role === 'EMPLOYEE') {
+            const [result] = await connection.execute(
+                `INSERT INTO AA_PRODUCER
+                (producer_email, producer_first_name, producer_last_name, producer_street, producer_city, producer_state, producer_zip_code, producer_country_id, producer_phone)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [email, first_name, last_name, street, city, state, zip_code, countryId, phone]
+            );
+            producerId = result.insertId;
+
+        } else {
+            throw new Error('Invalid registration role');
+        }
+
+        // 3. Create User Login
+        await connection.execute(
+            `INSERT INTO AA_USERS (email, password_hash, role, account_id, producer_id) 
+            VALUES (?, ?, ?, ?, ?)`,
+            [email, hashedPassword, role, accountId, producerId]
+        );
+
+        await connection.commit();
+        res.status(201).json({ message: 'User registered successfully' });
+
+    } catch (err) {
+        await connection.rollback();
+        console.error('Signup Error:', err);
+        const code = err.message === 'Email already registered' ? 409 : 500;
+        res.status(code).json({ error: err.message || 'Internal server error' });
+    } finally {
+        connection.release();
+    }
+});
+
 // Login Endpoint
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
@@ -67,7 +164,42 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
+        // Check account status for VIEWER role
+        if (user.role === 'VIEWER' && user.account_id) {
+            const [accountRows] = await pool.execute(
+                'SELECT account_status FROM AA_VIEWER_ACCOUNT WHERE account_id = ?',
+                [user.account_id]
+            );
+
+            if (accountRows.length > 0) {
+                const accountStatus = accountRows[0].account_status;
+
+                // Only LOCKED accounts are blocked from login
+                if (accountStatus === 'LOCKED') {
+                    return res.status(403).json({
+                        error: 'Account is locked. Please contact support.',
+                        status: 'LOCKED'
+                    });
+                }
+
+                // FLAGGED accounts can login but will see a warning
+                // The status is passed to frontend for banner display
+            }
+        }
+
         // Login successful - Return user info (excluding password)
+        // Include account status for frontend to show warnings
+        let accountStatus = 'ACTIVE';
+        if (user.role === 'VIEWER' && user.account_id) {
+            const [accountRows] = await pool.execute(
+                'SELECT account_status FROM AA_VIEWER_ACCOUNT WHERE account_id = ?',
+                [user.account_id]
+            );
+            if (accountRows.length > 0) {
+                accountStatus = accountRows[0].account_status;
+            }
+        }
+
         res.json({
             message: 'Login successful',
             user: {
@@ -75,7 +207,8 @@ app.post('/api/login', async (req, res) => {
                 email: user.email,
                 role: user.role,
                 accountId: user.account_id,
-                producerId: user.producer_id
+                producerId: user.producer_id,
+                accountStatus: accountStatus // Include status for frontend
             }
         });
 
@@ -336,11 +469,32 @@ app.post('/api/contracts/renew', async (req, res) => {
 app.get('/api/browse', async (req, res) => {
     try {
         const sql = `
-            SELECT ws.webseries_id, ws.series_name, ws.release_date, 
-                   GROUP_CONCAT(g.genre_name SEPARATOR ', ') as genres
+            SELECT 
+                ws.webseries_id, 
+                ws.series_name, 
+                ws.release_date, 
+                GROUP_CONCAT(DISTINCT g.genre_name SEPARATOR ', ') as genres,
+                (SELECT episode_id FROM AA_EPISODE WHERE webseries_id = ws.webseries_id ORDER BY episode_number ASC LIMIT 1) as first_episode_id,
+                -- Production House
+                ph.ph_name as production_house,
+                -- Languages
+                GROUP_CONCAT(DISTINCT ld.language_code SEPARATOR ', ') as dubbed_langs,
+                GROUP_CONCAT(DISTINCT ls.language_code SEPARATOR ', ') as sub_langs,
+                -- Release Countries (IDs)
+                GROUP_CONCAT(DISTINCT rc.country_id) as release_country_ids
             FROM AA_WEB_SERIES ws
+            LEFT JOIN AA_PRODUCTION_HOUSE ph ON ws.production_house_id = ph.production_house_id
             LEFT JOIN AA_WEBSERIES_GENRE wsg ON ws.webseries_id = wsg.webseries_id
             LEFT JOIN AA_GENRE g ON wsg.genre_id = g.genre_id
+            -- Dubbing
+            LEFT JOIN AA_WEBSERIES_DUBBING wd ON ws.webseries_id = wd.webseries_id
+            LEFT JOIN AA_LANGUAGE ld ON wd.language_id = ld.language_id
+            -- Subtitles
+            LEFT JOIN AA_WEBSERIES_SUBTITLE wst ON ws.webseries_id = wst.webseries_id
+            LEFT JOIN AA_LANGUAGE ls ON wst.language_id = ls.language_id
+            -- Release Country
+            LEFT JOIN AA_RELEASE_COUNTRY rc ON ws.webseries_id = rc.webseries_id
+            
             GROUP BY ws.webseries_id
             ORDER BY ws.release_date DESC
         `;
@@ -419,6 +573,462 @@ app.get('/api/viewers/:id/history', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// --- PROFILE MANAGEMENT ROUTES ---
+
+// 1. Get Profile (viewer_id or account_id passed via query or assumed from client context - 
+// In a real app we'd use session/token, here we'll accept account_id in query for simplicity per previous patterns)
+app.get('/api/profile/:id', async (req, res) => {
+    const accountId = req.params.id;
+    try {
+        const sql = `
+            SELECT va.*, c.country_name 
+            FROM AA_VIEWER_ACCOUNT va
+            JOIN AA_COUNTRY c ON va.viewer_country_id = c.country_id
+            WHERE va.account_id = ?
+        `;
+        const [rows] = await pool.execute(sql, [accountId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Profile not found' });
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// 2. Update Profile (Transaction)
+app.put('/api/profile/:id', async (req, res) => {
+    const accountId = req.params.id;
+    const { viewer_street, viewer_city, viewer_state, viewer_zip_code } = req.body;
+
+    // Start Transaction
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // Update Address
+        await connection.execute(
+            `UPDATE AA_VIEWER_ACCOUNT 
+             SET viewer_street = ?, viewer_city = ?, viewer_state = ?, viewer_zip_code = ?
+             WHERE account_id = ?`,
+            [viewer_street, viewer_city, viewer_state, viewer_zip_code, accountId]
+        );
+
+        await connection.commit();
+        res.json({ message: 'Profile Updated Successfully!' });
+
+    } catch (err) {
+        await connection.rollback();
+        console.error('Update Error:', err);
+        res.status(500).json({ error: 'Update failed' });
+    } finally {
+        connection.release();
+    }
+});
+
+// 3. Delete Account
+app.delete('/api/profile/:id', async (req, res) => {
+    const accountId = req.params.id;
+    try {
+        // AA_USERS, AA_VIEWER_FEEDBACK, AA_VIEW_HISTORY should cascade if configured. 
+        // If AA_USERS doesn't cascade account_id, we might need to delete user first or let DB handle it.
+        // Assuming DB constraints are set (ON DELETE CASCADE is standard for these relations).
+        // Safest approach: Delete Viewer Account, let cascades handle the rest.
+
+        // However, AA_USERS refers to AA_VIEWER_ACCOUNT. So deleting Viewer Account -> AA_USERS foreign key constraint?
+        // AA_USERS has FK to VIEW_ACCOUNT. Usually needs CASCADE on the AA_USERS definition.
+
+        await pool.execute('DELETE FROM AA_VIEWER_ACCOUNT WHERE account_id = ?', [accountId]);
+
+        // Also cleanup AA_USERS just in case it wasn't cascaded perfectly (or if it was SET NULL)
+        await pool.execute('DELETE FROM AA_USERS WHERE account_id = ?', [accountId]);
+
+        res.json({ message: 'Account Closed. We will miss you!' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Deletion failed' });
+    }
+});
+
+
+// --- WATCH HISTORY ROUTES ---
+
+// 1. Get History (Joined)
+app.get('/api/history/:accountId', async (req, res) => {
+    const accountId = req.params.accountId;
+    try {
+        const sql = `
+            SELECT 
+                vh.view_id, 
+                vh.view_timestamp, 
+                e.episode_title, 
+                e.episode_number, 
+                ws.series_name,
+                ws.webseries_id
+            FROM AA_VIEW_HISTORY vh
+            JOIN AA_EPISODE e ON vh.episode_id = e.episode_id
+            JOIN AA_WEB_SERIES ws ON e.webseries_id = ws.webseries_id
+            WHERE vh.account_id = ?
+            ORDER BY vh.view_timestamp DESC
+        `;
+        const [rows] = await pool.execute(sql, [accountId]);
+        res.json(rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// 2. Delete Single Item
+app.delete('/api/history/item/:id', async (req, res) => {
+    const viewId = req.params.id;
+    try {
+        await pool.execute('DELETE FROM AA_VIEW_HISTORY WHERE view_id = ?', [viewId]);
+        res.json({ message: 'Item deleted' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Delete failed' });
+    }
+});
+
+// 3. Delete All History (Transaction)
+app.delete('/api/history/all/:accountId', async (req, res) => {
+    const accountId = req.params.accountId;
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        await connection.execute('DELETE FROM AA_VIEW_HISTORY WHERE account_id = ?', [accountId]);
+
+        await connection.commit();
+        res.json({ message: 'History cleared successfully' });
+
+    } catch (err) {
+        await connection.rollback();
+        console.error(err);
+        res.status(500).json({ error: 'Clear history failed' });
+    } finally {
+        connection.release();
+    }
+});
+
+
+// --- Country Management (Public & Admin) ---
+
+// Public: Get List of Countries for Dropdown
+app.get('/api/countries', async (req, res) => {
+    try {
+        // Exclude ID 999 (Other) from the main list if desired, or include it. 
+        // We generally list real countries here. Frontend adds "Other".
+        const [rows] = await pool.query('SELECT * FROM AA_COUNTRY WHERE country_id != 999 ORDER BY country_name ASC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin: Add Country
+app.post('/api/admin/countries', async (req, res) => {
+    const { country_name, country_code_iso } = req.body;
+    try {
+        // Find max ID excluding 999
+        const [rows] = await pool.query('SELECT MAX(country_id) as maxId FROM AA_COUNTRY WHERE country_id < 999');
+        const nextId = (rows[0].maxId || 0) + 1;
+
+        await pool.query('INSERT INTO AA_COUNTRY (country_id, country_name, country_code_iso) VALUES (?, ?, ?)', [nextId, country_name, country_code_iso]);
+        res.json({ message: 'Country added', countryId: nextId });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin: Update Country
+app.put('/api/admin/countries/:id', async (req, res) => {
+    const { country_name, country_code_iso } = req.body;
+    try {
+        await pool.query('UPDATE AA_COUNTRY SET country_name = ?, country_code_iso = ? WHERE country_id = ?', [country_name, country_code_iso, req.params.id]);
+        res.json({ message: 'Country updated' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin: Delete Country
+app.delete('/api/admin/countries/:id', async (req, res) => {
+    try {
+        await pool.execute('DELETE FROM AA_COUNTRY WHERE country_id = ?', [req.params.id]);
+        res.json({ message: 'Country deleted' });
+    } catch (err) {
+        res.status(500).json({ error: err.message }); // Will fail if FK constraints exist (which is good)
+    }
+});
+
+// Admin: Get Suggestions
+app.get('/api/admin/suggestions', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT suggested_country_name, COUNT(*) as user_count 
+            FROM AA_VIEWER_ACCOUNT 
+            WHERE viewer_country_id = 999 
+            AND suggested_country_name IS NOT NULL 
+            GROUP BY suggested_country_name
+        `);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin: Approve Country (Transaction)
+app.post('/api/admin/approve-country', async (req, res) => {
+    const { suggested_name, official_name, official_code } = req.body;
+
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // 1. Calculate Next ID (Gap Filling Logic)
+        // Find max ID excluding the special 999 ID
+        const [rows] = await connection.query('SELECT MAX(country_id) as maxId FROM AA_COUNTRY WHERE country_id < 999');
+        const nextId = (rows[0].maxId || 0) + 1;
+
+        // 2. Create Official Country with explicit ID
+        await connection.execute(
+            'INSERT INTO AA_COUNTRY (country_id, country_name, country_code_iso) VALUES (?, ?, ?)',
+            [nextId, official_name, official_code]
+        );
+
+        // 3. Update Users who suggested this name
+        const [updateRes] = await connection.execute(
+            `UPDATE AA_VIEWER_ACCOUNT 
+             SET viewer_country_id = ?, suggested_country_name = NULL 
+             WHERE viewer_country_id = 999 AND suggested_country_name = ?`,
+            [nextId, suggested_name]
+        );
+
+        await connection.commit();
+        res.json({
+            message: 'Country Approved',
+            newCountryId: nextId,
+            usersUpdated: updateRes.affectedRows
+        });
+
+    } catch (err) {
+        await connection.rollback();
+        res.status(500).json({ error: err.message });
+    } finally {
+        connection.release();
+    }
+});
+
+// --- User Management (Admin) ---
+
+// Admin: Get Viewers with Filters
+app.get('/api/admin/viewers', async (req, res) => {
+    const { email, country_id, min_charge, max_charge, status } = req.query;
+
+    try {
+        let query = `
+            SELECT 
+                v.account_id,
+                v.viewer_email,
+                v.viewer_first_name,
+                v.viewer_last_name,
+                v.monthly_service_charge,
+                v.account_status,
+                v.viewer_country_id,
+                c.country_name
+            FROM AA_VIEWER_ACCOUNT v
+            LEFT JOIN AA_COUNTRY c ON v.viewer_country_id = c.country_id
+            WHERE 1=1
+        `;
+
+        const params = [];
+
+        if (email) {
+            query += ' AND v.viewer_email LIKE ?';
+            params.push(`%${email}%`);
+        }
+
+        if (country_id) {
+            query += ' AND v.viewer_country_id = ?';
+            params.push(country_id);
+        }
+
+        if (min_charge) {
+            query += ' AND v.monthly_service_charge >= ?';
+            params.push(parseFloat(min_charge));
+        }
+
+        if (max_charge) {
+            query += ' AND v.monthly_service_charge <= ?';
+            params.push(parseFloat(max_charge));
+        }
+
+        if (status) {
+            query += ' AND v.account_status = ?';
+            params.push(status);
+        }
+
+        query += ' ORDER BY v.account_id DESC';
+
+        const [rows] = await pool.query(query, params);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin: Update Service Charge
+app.put('/api/admin/viewers/:accountId/charge', async (req, res) => {
+    const { accountId } = req.params;
+    const { monthly_service_charge } = req.body;
+
+    if (monthly_service_charge < 0) {
+        return res.status(400).json({ error: 'Charge must be non-negative' });
+    }
+
+    try {
+        await pool.execute(
+            'UPDATE AA_VIEWER_ACCOUNT SET monthly_service_charge = ? WHERE account_id = ?',
+            [monthly_service_charge, accountId]
+        );
+        res.json({ message: 'Service charge updated' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Admin: Update Account Status
+app.put('/api/admin/viewers/:accountId/status', async (req, res) => {
+    const { accountId } = req.params;
+    const { account_status } = req.body;
+
+    const validStatuses = ['ACTIVE', 'LOCKED', 'FLAGGED'];
+    if (!validStatuses.includes(account_status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    try {
+        await pool.execute(
+            'UPDATE AA_VIEWER_ACCOUNT SET account_status = ? WHERE account_id = ?',
+            [account_status, accountId]
+        );
+        res.json({ message: 'Account status updated' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- Production House Management (Admin) ---
+
+// Get Production Houses with Search
+app.get('/api/admin/production-houses', async (req, res) => {
+    const { name } = req.query;
+
+    try {
+        let query = `
+            SELECT 
+                ph.production_house_id,
+                ph.ph_name,
+                ph.ph_city,
+                ph.ph_country_id,
+                c.country_name,
+                ph.year_established,
+                COUNT(DISTINCT ws.webseries_id) as series_count
+            FROM AA_PRODUCTION_HOUSE ph
+            LEFT JOIN AA_COUNTRY c ON ph.ph_country_id = c.country_id
+            LEFT JOIN AA_WEB_SERIES ws ON ph.production_house_id = ws.production_house_id
+            WHERE 1=1
+        `;
+
+        const params = [];
+
+        if (name) {
+            query += ' AND ph.ph_name LIKE ?';
+            params.push(`%${name}%`);
+        }
+
+        query += ' GROUP BY ph.production_house_id ORDER BY ph.ph_name ASC';
+
+        const [rows] = await pool.query(query, params);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get Single Production House
+app.get('/api/admin/production-houses/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const [rows] = await pool.query(
+            'SELECT * FROM AA_PRODUCTION_HOUSE WHERE production_house_id = ?',
+            [id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Production house not found' });
+        }
+
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Add Production House
+app.post('/api/admin/production-houses', async (req, res) => {
+    const { ph_name, ph_street, ph_city, ph_state, ph_zip_code, ph_country_id, year_established } = req.body;
+
+    try {
+        const [result] = await pool.execute(
+            `INSERT INTO AA_PRODUCTION_HOUSE 
+            (ph_name, ph_street, ph_city, ph_state, ph_zip_code, ph_country_id, year_established) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [ph_name, ph_street, ph_city, ph_state || null, ph_zip_code, ph_country_id, year_established]
+        );
+        res.json({ message: 'Production house added', id: result.insertId });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Update Production House
+app.put('/api/admin/production-houses/:id', async (req, res) => {
+    const { id } = req.params;
+    const { ph_name, ph_street, ph_city, ph_state, ph_zip_code, ph_country_id, year_established } = req.body;
+
+    try {
+        await pool.execute(
+            `UPDATE AA_PRODUCTION_HOUSE 
+            SET ph_name = ?, ph_street = ?, ph_city = ?, ph_state = ?, 
+                ph_zip_code = ?, ph_country_id = ?, year_established = ?
+            WHERE production_house_id = ?`,
+            [ph_name, ph_street, ph_city, ph_state || null, ph_zip_code, ph_country_id, year_established, id]
+        );
+        res.json({ message: 'Production house updated' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete Production House
+app.delete('/api/admin/production-houses/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await pool.execute('DELETE FROM AA_PRODUCTION_HOUSE WHERE production_house_id = ?', [id]);
+        res.json({ message: 'Production house deleted' });
+    } catch (err) {
+        // Will fail if there are web series linked to this production house (FK constraint)
+        res.status(500).json({ error: err.message });
     }
 });
 

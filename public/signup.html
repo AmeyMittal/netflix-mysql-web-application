@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix - Sign Up</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://assets.nflxext.com/ffe/siteui/vlv3/dace47b4-a5cb-4368-80fe-c26f3e77d540/f5b52435-458f-498f-9d1d-ccd4f1af9913/US-en-20231023-popsignuptwoweeks-perspective_alpha_website_large.jpg');
+            background-size: cover;
+            background-position: center;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        .btn-netflix {
+            background-color: #e50914;
+            color: white;
+        }
+
+        .btn-netflix:hover {
+            background-color: #c10912;
+        }
+
+        .login-box {
+            background-color: rgba(0, 0, 0, 0.75);
+        }
+    </style>
+</head>
+
+<body class="bg-black text-white min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="flex justify-between items-center px-10 py-6 z-10">
+        <a href="index.html">
+            <h1 class="text-red-600 text-5xl font-bold uppercase tracking-tighter">NEWS</h1>
+        </a>
+        <a href="index.html" class="text-white font-bold hover:underline">Sign In</a>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex-grow flex items-center justify-center z-10 py-10">
+        <div class="login-box p-12 rounded-md w-full max-w-lg">
+            <h2 class="text-3xl font-bold mb-6">Sign Up</h2>
+
+            <form id="signupForm" class="space-y-4">
+                <!-- Error Message Container -->
+                <div id="errorMessage" class="hidden bg-orange-500 text-white text-sm p-3 rounded"></div>
+                <div id="successMessage" class="hidden bg-green-500 text-white text-sm p-3 rounded"></div>
+
+                <!-- Role Selection -->
+                <div>
+                    <label class="block text-gray-400 text-xs mb-1">I want to register as:</label>
+                    <select id="roleSelect"
+                        class="block w-full rounded bg-gray-700 border-none text-white h-10 px-4 focus:ring-2 focus:ring-gray-400 focus:bg-gray-600 focus:outline-none">
+                        <option value="VIEWER">Viewer (Watch Shows)</option>
+                        <option value="EMPLOYEE">Producer (Create Content)</option>
+                    </select>
+                </div>
+
+                <!-- Common Fields -->
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="text" id="firstName" required placeholder="First Name"
+                        class="rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 w-full">
+                    <input type="text" id="lastName" required placeholder="Last Name"
+                        class="rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 w-full">
+                </div>
+
+                <input type="email" id="email" required placeholder="Email Address"
+                    class="rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 w-full">
+
+                <input type="password" id="password" required placeholder="Password"
+                    class="rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 w-full">
+
+                <!-- Address Fields -->
+                <div class="space-y-4 pt-2">
+                    <p class="text-gray-400 text-sm font-bold">Billing Address</p>
+                    <input type="text" id="street" required placeholder="Street Address"
+                        class="rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 w-full">
+
+
+                    <input type="text" id="city" required placeholder="City"
+                        class="rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 w-full">
+                    <input type="text" id="state" placeholder="State (Optional)"
+                        class="rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-gray-400 w-full">
+                </div>
+
+                <!-- Removed redundant zip/country block -->
+
+                <!-- Country Dropdown -->
+                <div class="mb-4 relative">
+                    <label class="block text-gray-400 text-sm mb-2">Country</label>
+                    <select id="countrySelect"
+                        class="w-full p-3 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600 appearance-none">
+                        <option value="" disabled selected>Select your country</option>
+                        <!-- Populated by JS -->
+                    </select>
+                    <div
+                        class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400 top-8">
+                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Suggested Country (Hidden by default) -->
+                <div id="suggestedCountryGroup" class="mb-4 hidden">
+                    <label class="block text-gray-400 text-sm mb-2">Suggested Country Name</label>
+                    <input type="text" id="suggestedName" placeholder="Enter your country name"
+                        class="w-full p-3 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
+                    <p class="text-xs text-gray-400 mt-1">An admin will review and verify this country.</p>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-gray-400 text-sm mb-2">Zip Code</label>
+                    <input type="text" id="zipCode" required placeholder="Zip Code"
+                        class="w-full p-3 rounded bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
+                </div>
+        </div>
+
+        <!-- Producer Specific -->
+        <div id="producerFields" class="hidden">
+            <p class="text-gray-400 text-sm font-bold pt-2">Producer Details</p>
+            <input type="tel" id="phone" placeholder="Phone Number"
+                class="rounded bg-gray-700 border-none text-white h-12 px-4 focus:ring-2 focus:ring-400 w-full mt-2">
+        </div>
+
+        <button type="submit" class="btn-netflix w-full h-12 rounded font-bold text-lg mt-6 transition duration-200">
+            Sign Up
+        </button>
+        </form>
+    </div>
+    </div>
+
+    <script>
+        const roleSelect = document.getElementById('roleSelect');
+        const producerFields = document.getElementById('producerFields');
+        const phoneInput = document.getElementById('phone');
+
+        // Toggle fields based on role
+        roleSelect.addEventListener('change', () => {
+            if (roleSelect.value === 'EMPLOYEE') {
+                producerFields.classList.remove('hidden');
+                phoneInput.setAttribute('required', 'true');
+            } else {
+                producerFields.classList.add('hidden');
+                phoneInput.removeAttribute('required');
+            }
+        });
+
+        // Load Countries
+        async function loadCountries() {
+            try {
+                const res = await fetch('/api/countries');
+                const countries = await res.json();
+                const select = document.getElementById('countrySelect');
+
+                countries.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.country_id;
+                    opt.textContent = c.country_name;
+                    select.appendChild(opt);
+                });
+
+                // Add "Other"
+                const other = document.createElement('option');
+                other.value = '999';
+                other.textContent = 'Other / Unknown';
+                select.appendChild(other);
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        loadCountries();
+
+        // Toggle "Other" input
+        document.getElementById('countrySelect').addEventListener('change', (e) => {
+            const group = document.getElementById('suggestedCountryGroup');
+            if (e.target.value === '999') {
+                group.classList.remove('hidden');
+            } else {
+                group.classList.add('hidden');
+            }
+        });
+
+        // Submit Logic
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+
+            errorDiv.classList.add('hidden');
+            successDiv.classList.add('hidden');
+
+            const countryId = document.getElementById('countrySelect').value;
+            const suggestedName = document.getElementById('suggestedName').value;
+
+            if (!countryId) {
+                errorDiv.innerText = "Please select a country.";
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            if (countryId === '999' && !suggestedName) {
+                errorDiv.innerText = "Please specify your country name.";
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            const payload = {
+                role: roleSelect.value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                first_name: document.getElementById('firstName').value,
+                last_name: document.getElementById('lastName').value,
+                street: document.getElementById('street').value,
+                city: document.getElementById('city').value,
+                state: document.getElementById('state').value,
+                zip_code: document.getElementById('zipCode').value,
+                country_id: countryId,
+                suggested_country_name: countryId === '999' ? suggestedName : null,
+                // Optional
+                phone: document.getElementById('phone').value
+            };
+
+            try {
+                const response = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    successDiv.innerText = 'Registration Successful! Redirecting...';
+                    successDiv.classList.remove('hidden');
+                    setTimeout(() => window.location.href = 'index.html', 2000);
+                } else {
+                    errorDiv.innerText = data.error || 'Registration failed.';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error(err);
+                errorDiv.innerText = 'Network error. Try again later.';
+                errorDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+
+</html>
